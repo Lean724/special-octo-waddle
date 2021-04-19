@@ -1,4 +1,4 @@
-#include <stdio.h>      // libreria estandar
+ #include <stdio.h>      // libreria estandar
 #include <stdlib.h>     // para usar exit y funciones de la libreria standard
 #include <string.h>
 #include <pthread.h>    // para usar threads
@@ -14,6 +14,7 @@ struct semaforos {
 	sem_t sem_freir;
 	sem_t sem_hornear_pan;
 	sem_t sem_armar;
+	sem_t sem_finalizo;
 	
 };
 
@@ -78,25 +79,35 @@ void* mezclar(void *data) {
 	struct parametro *mydata = data;
 	imprimirAccion(mydata,accion);
 	usleep( 20000 );
-	sem_post(&mydata->semaforos_param.sem_mezclar);
-	    pthread_exit(NULL);
+	sem_post(&mydata->semaforos_param.sem_freir);
+	sem_post(&mydata->semaforos_param.sem_hornear_pan);
+	pthread_exit(NULL);
 }
 
 void* armar(void *data) {
 	char *accion = "armar";
 	struct parametro *mydata = data;
 	imprimirAccion(mydata,accion);
-	usleep( 20000 );
-	sem_post(&mydata->semaforos_param.sem_armar);
+	usleep( 40000 );
+	sem_post(&mydata->semaforos_param.sem_finalizo);
 	pthread_exit(NULL);
+}
+
+void* finalizo(void *data) {
+	char *accion = "finalizo";
+	struct parametro *mydata = data;
+	imprimirAccion(mydata,accion);
+	usleep( 20000 );
+	pthread_exit(NULL);
+	
 }
 
 void* freir(void *data) {
 	char *accion = "freir";
 	struct parametro *mydata = data;
 	imprimirAccion(mydata,accion);
-	usleep( 20000 );
-	sem_post(&mydata->semaforos_param.sem_freir);
+	usleep( 50000 );
+	sem_post(&mydata->semaforos_param.sem_armar);
 	pthread_exit(NULL);
 }
 
@@ -104,8 +115,8 @@ void* hornear(void *data) {
 	char *accion = "hornear";
 	struct parametro *mydata = data;
 	imprimirAccion(mydata,accion);
-	usleep( 20000 );
-	sem_post(&mydata->semaforos_param.sem_hornear_pan);
+	usleep( 90000 );
+	sem_post(&mydata->semaforos_param.sem_armar);
 	pthread_exit(NULL);
 }
 
@@ -117,13 +128,12 @@ void* ejecutarReceta(void *i) {
 	sem_t sem_freir;
 	sem_t sem_hornear_pan;
 	sem_t sem_armar;
-	//crear variables semaforos aqui
+	sem_t sem_finalizo;
+	
 	
 	//variables hilos
 	pthread_t p1; 
-	pthread_t p2; 
-	pthread_t p3; 
-	pthread_t p4; 
+
 	
 	//numero del equipo (casteo el puntero a un int)
 	int p = *((int *) i);
@@ -143,6 +153,7 @@ void* ejecutarReceta(void *i) {
 	pthread_data->semaforos_param.sem_freir = sem_freir;
 	pthread_data->semaforos_param.sem_hornear_pan = sem_hornear_pan;
 	pthread_data->semaforos_param.sem_armar =  sem_armar;
+	pthread_data->semaforos_param.sem_finalizo = sem_finalizo;
 	
 	
 
@@ -151,7 +162,7 @@ void* ejecutarReceta(void *i) {
      strcpy(pthread_data->pasos_param[0].accion, "cortar");
 	 strcpy(pthread_data->pasos_param[0].ingredientes[0], "ajo");
      strcpy(pthread_data->pasos_param[0].ingredientes[1], "perejil");
-	 strcpy(pthread_data->pasos_param[0].ingredientes[1], "pepino");
+	 strcpy(pthread_data->pasos_param[0].ingredientes[2], "pepino");
 
 
 	strcpy(pthread_data->pasos_param[1].accion, "mezclar");
@@ -173,6 +184,10 @@ void* ejecutarReceta(void *i) {
 	strcpy(pthread_data->pasos_param[4].ingredientes[3], "tomate");
 	strcpy(pthread_data->pasos_param[4].ingredientes[4], "pepino");
 	strcpy(pthread_data->pasos_param[4].ingredientes[3], "cebolla Morada");
+
+
+	strcpy(pthread_data->pasos_param[5].accion, "finalizo");
+		strcpy(pthread_data->pasos_param[4].ingredientes[0], "");
     
     
 	 
@@ -183,7 +198,7 @@ void* ejecutarReceta(void *i) {
 	sem_init(&(pthread_data->semaforos_param.sem_freir),0,0);
 	sem_init(&(pthread_data->semaforos_param.sem_hornear_pan),0,0);
 	sem_init(&(pthread_data->semaforos_param.sem_armar),0,0);
-	
+	sem_init(&(pthread_data->semaforos_param.sem_finalizo),0,0);
 
 
 	//creo los hilos a todos les paso el struct creado (el mismo a todos los hilos) ya que todos comparten los semaforos 
@@ -194,71 +209,22 @@ void* ejecutarReceta(void *i) {
                             NULL,                          //atributos del thread
                                 cortar,             //funcion a ejecutar
                                 pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia	
-	rc = pthread_create(&p2,                           //identificador unico
-                            NULL,                          //atributos del thread
-                                cortar,             //funcion a ejecutar
-                                pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia		
-	rc = pthread_create(&p3,                           //identificador unico
-                            NULL,                          //atributos del thread
-                                cortar,             //funcion a ejecutar
-                                pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia		
-	rc = pthread_create(&p4,                           //identificador unico
-                            NULL,                          //atributos del thread
-                                cortar,             //funcion a ejecutar
-                                pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia																										
 	
-	
-	pthread_join (p1,NULL);
-	pthread_join (p2,NULL);
-	pthread_join (p3,NULL);
-	pthread_join (p4,NULL);
 	//mezclar
 
 	rc = pthread_create(&p1,                           //identificador unico
                             NULL,                          //atributos del thread
                                 mezclar,             //funcion a ejecutar
                                 pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia	
-	rc = pthread_create(&p2,                           //identificador unico
-                            NULL,                          //atributos del thread
-                                mezclar,             //funcion a ejecutar
-                                pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia		
-	rc = pthread_create(&p3,                           //identificador unico
-                            NULL,                          //atributos del thread
-                                mezclar,             //funcion a ejecutar
-                                pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia		
-	rc = pthread_create(&p4,                           //identificador unico
-                            NULL,                          //atributos del thread
-                                mezclar,             //funcion a ejecutar
-                                pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia																										
-																									
 	
-	pthread_join (p1,NULL);
-	pthread_join (p2,NULL);
-	pthread_join (p3,NULL);
-	pthread_join (p4,NULL);
+	
 	//freir
 
 	rc = pthread_create(&p1,                           //identificador unico
                             NULL,                          //atributos del thread
                                 freir,             //funcion a ejecutar
                                 pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia	
-	rc = pthread_create(&p2,                           //identificador unico
-                            NULL,                          //atributos del thread
-                                freir,             //funcion a ejecutar
-                                pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia		
-	rc = pthread_create(&p3,                           //identificador unico
-                            NULL,                          //atributos del thread
-                                freir,             //funcion a ejecutar
-                                pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia		
-	rc = pthread_create(&p4,                           //identificador unico
-                            NULL,                          //atributos del thread
-                                freir,             //funcion a ejecutar
-                                pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia																										
-
-	pthread_join (p1,NULL);
-	pthread_join (p2,NULL);
-	pthread_join (p3,NULL);
-	pthread_join (p4,NULL);							
+	
 	
 	//armar
 
@@ -266,27 +232,14 @@ void* ejecutarReceta(void *i) {
                             NULL,                          //atributos del thread
                                 armar,             //funcion a ejecutar
                                 pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia	
-	rc = pthread_create(&p2,                           //identificador unico
+																	
+	//termino	
+	rc = pthread_create(&p1,                           //identificador unico
                             NULL,                          //atributos del thread
-                                armar,             //funcion a ejecutar
-                                pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia		
-	rc = pthread_create(&p3,                           //identificador unico
-                            NULL,                          //atributos del thread
-                                armar,             //funcion a ejecutar
-                                pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia		
-	rc = pthread_create(&p4,                           //identificador unico
-                            NULL,                          //atributos del thread
-                                armar,             //funcion a ejecutar
-                                pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia																										
+                                finalizo,             //funcion a ejecutar
+                                pthread_data);                     //parametros de la funcion a ejecutar, pasado por referencia	
 	
-
-	//join de todos los hilos
 	pthread_join (p1,NULL);
-	pthread_join (p2,NULL);
-	pthread_join (p3,NULL);
-	pthread_join (p4,NULL);
-	
-
 
 	//valido que el hilo se alla creado bien 
     if (rc){
@@ -300,7 +253,7 @@ void* ejecutarReceta(void *i) {
 	sem_destroy(&sem_freir);
 	sem_destroy(&sem_hornear_pan);
 	sem_destroy(&sem_armar);
-	
+	sem_destroy(&sem_finalizo);
 	//salida del hilo
 	 pthread_exit(NULL);
 }
